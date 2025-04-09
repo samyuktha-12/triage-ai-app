@@ -5,7 +5,11 @@ from sklearn.metrics import classification_report
 import joblib
 
 # Load dataset
-df = pd.read_csv("data/ktas.csv")
+df = pd.read_csv("data/ktas.csv", encoding='ISO-8859-1', delimiter=';')
+# Convert decimal commas to dots and cast columns to float
+df['KTAS duration_min'] = df['KTAS duration_min'].str.replace(',', '.').astype(float)
+df['Length of stay_min'] = df['Length of stay_min'].astype(float)
+
 
 # Map categorical encodings
 df['Sex'] = df['Sex'].map({1: 'Female', 2: 'Male'})
@@ -17,8 +21,8 @@ df['Mental'] = df['Mental'].map({1: 'Alert', 2: 'Verbal', 3: 'Pain', 4: 'Unrespo
 df = df.dropna()
 
 # Features & labels
-X = df.drop(columns=['KTAS'])
-y = df['KTAS'].apply(lambda x: 0 if x >= 4 else 1)  # Emergency (1) vs Non-emergency (0)
+X = df.drop(columns=['KTAS_expert'])
+y = df['KTAS_expert'].apply(lambda x: 0 if x >= 4 else 1)  # Emergency (1) vs Non-emergency (0)
 
 # Encode categoricals
 X = pd.get_dummies(X)
