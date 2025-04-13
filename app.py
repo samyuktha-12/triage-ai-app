@@ -14,7 +14,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from model.explain_model import explain_prediction
 
-# Load model and columns
 model = joblib.load("model/triage_model.pkl")
 feature_columns = joblib.load("model/feature_columns.pkl")
 
@@ -30,31 +29,20 @@ def preprocess_patient(patient):
 
 def display_shap_plot(df):
     explainer = shap.TreeExplainer(model)
-    # Assuming shap_values is generated for class 0 or class 1
     shap_values = explainer.shap_values(df)
 
-    # Check if only one class is predicted
     if isinstance(shap_values, list):
         if len(shap_values) == 1:
-            # Only one class predicted, use shap_values[0] for the explanation
             st.pyplot(shap.summary_plot(shap_values[0], df, plot_type="bar", show=False))
         else:
-            # Predicts both classes, so use shap_values[1] for class 1
             st.pyplot(shap.summary_plot(shap_values[1], df, plot_type="bar", show=False))
     else:
-        # If shap_values is not a list, it's a binary classification with only one output
         st.pyplot(shap.summary_plot(shap_values, df, plot_type="bar", show=False))
 
 import streamlit as st
 import pandas as pd
 
 def display_fairness_report(fairness_report):
-    """
-    Display the fairness report in a user-friendly format with explanations and tables.
-    
-    Parameters:
-    - fairness_report (dict): Output from check_fairness(model)
-    """
 
     st.write("### 📊 Fairness Analysis Report")
     st.write("This report analyzes how fairly the model performs across different patient attributes.")
@@ -65,7 +53,6 @@ def display_fairness_report(fairness_report):
     for attribute, data in fairness_report.items():
         st.markdown(f"#### 🧩 Fairness by {attribute}")
         
-        # Explain the attribute
         if attribute == "Sex":
             st.markdown("**Sex** indicates whether the patient is male or female.")
         elif attribute == "Injury":
@@ -75,12 +62,10 @@ def display_fairness_report(fairness_report):
         elif attribute == "Mental":
             st.markdown("**Mental status** represents the patient’s consciousness level on arrival (Alert, Verbal, Pain, Unresponsive).")
         
-        # Display accuracy table
         group_accuracy = pd.DataFrame.from_dict(data["accuracy_by_group"], orient="index", columns=["Accuracy"])
         group_accuracy.index.name = attribute
         st.table(group_accuracy)
 
-        # Explain the fairness
         diff = data["difference"]
         if diff == 0:
             st.success("✅ The model performs equally across all groups for this attribute.")
@@ -106,7 +91,6 @@ def display_shap_explanation(shap_vals, patient_id=0):
     shap_values_all = shap_vals.get("shap_values_class_1", [])
     feature_names = shap_vals.get("feature_names", [])
 
-    # Safety checks
     if not shap_values_all or not feature_names:
         st.error("Missing SHAP values or feature names.")
         return
@@ -115,12 +99,10 @@ def display_shap_explanation(shap_vals, patient_id=0):
         st.error("Invalid patient ID selected.")
         return
 
-    # Get values for this patient
     shap_values = shap_values_all[patient_id]
 
-    # Flatten SHAP values if 2D per feature
     if isinstance(shap_values[0], (list, np.ndarray)):
-        shap_values = [sum(vals) for vals in shap_values]  # Sum or mean can be used depending on interpretation
+        shap_values = [sum(vals) for vals in shap_values] 
 
     if len(shap_values) != len(feature_names):
         st.error("Mismatch between SHAP values and feature names.")
@@ -191,7 +173,7 @@ if 'run' in locals() and run:
         st.warning("⚖️ Both patients have equal priority.")
 
     with st.expander("🔍 Reasoning for Patient 1"):
-        shap_vals = explain_prediction(model, df1)  # df1 is 1-row DataFrame for Patient 1
+        shap_vals = explain_prediction(model, df1)  
         top_feat = shap_vals[0]["top_contributing_feature"]
         top_val = shap_vals[0]["top_contributing_shap_value"]
 
@@ -200,7 +182,7 @@ if 'run' in locals() and run:
 
 
     with st.expander("🔍 Reasoning for Patient 2"):
-        shap_vals = explain_prediction(model, df1)  # df1 is 1-row DataFrame for Patient 1
+        shap_vals = explain_prediction(model, df1) 
         top_feat = shap_vals[0]["top_contributing_feature"]
         top_val = shap_vals[0]["top_contributing_shap_value"]
 
