@@ -1,51 +1,40 @@
 import shap
-import pandas as pd
 import joblib
+import numpy as np
 
-# Load the feature columns (use the same one as in your main script)
+# Load feature columns
 feature_columns = joblib.load("model/feature_columns.pkl")
 
 def explain_prediction(model, df):
     """
-    Explain a model's prediction using SHAP.
+    Return the top contributing feature and its scalar SHAP value for each patient (binary classification).
 
     Parameters:
-    - model: The trained machine learning model
-    - df: The patient data for which the prediction is being explained (DataFrame)
+    - model: Trained classifier
+    - df: DataFrame with patient rows
 
     Returns:
-    - A dictionary of SHAP values for explanation.
+    - List of dicts: [{ "top_contributing_feature": ..., "top_contributing_shap_value": ... }]
     """
-    # Initialize SHAP explainer with the model
     explainer = shap.TreeExplainer(model)
-
-    # Get SHAP values
     shap_values = explainer.shap_values(df)
 
-    # Check the number of classes in the SHAP values
-    if isinstance(shap_values, list):
-        # Case 1: If SHAP values are returned as a list (for multi-class or binary classification)
-        if len(shap_values) == 1:
-            # Only one class (binary classification, might predict only 0 or 1)
-            shap_vals = {
-                "shap_values_class_1": shap_values[0].tolist(),  # SHAP values for class 0
-                "shap_values_class_0": None,  # No class 1 in the prediction
-                "feature_names": feature_columns
-            }
-        else:
-            # Predicts both classes (0 and 1)
-            shap_vals = {
-                "shap_values_class_1": shap_values[1].tolist(),  # SHAP values for class 1
-                "shap_values_class_0": shap_values[0].tolist(),  # SHAP values for class 0
-                "feature_names": feature_columns
-            }
-    else:
-        # Case 2: If SHAP values are returned as a single array (binary classification)
-        shap_vals = {
-            "shap_values_class_1": shap_values.tolist(),  # Only one class, so the same SHAP values
-            "shap_values_class_0": None,  # No class 1 in the prediction
-            "feature_names": feature_columns
-        }
+    # For binary classification (shap_values is a list of 2 arrays)
+    class_1_shap = shap_values[1] if isinstance(shap_values, list) else shap_values
 
-    return shap_vals
+    results = []
 
+    for i in range(df.shape[0]):
+        patient_shap = class_1_shap[i]
+
+        # If the SHAP values are multi-dimensional per feature, reduce it to a scalar (e.g., pick class 1)
+        if isinstance(patient_shap[0], (list, np.ndarray)):
+            patient_shap = np.array([val[1] for val in patient_shap])  # Class 1 SHAP values per feature
+
+        max_idx = int(np.argmax(np.abs(patient_shap)))
+        results.append({
+            "top_contributing_feature": feature_columns[max_idx],
+            "top_contributing_shap_value": round(patient_shap[max_idx], 6)
+        })
+
+    return results
