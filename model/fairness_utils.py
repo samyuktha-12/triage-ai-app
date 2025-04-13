@@ -1,20 +1,29 @@
-from aif360.datasets import BinaryLabelDataset
-from aif360.algorithms.inprocessing import PrejudiceRemover
 import pandas as pd
+import joblib
+from sklearn.metrics import accuracy_score
 
-def apply_fairness(X_train, y_train, X_test, y_test, privileged_attr='Sex'):
-    # Convert to AIF360 dataset
-    dataset_orig = BinaryLabelDataset(favorable_label=1, unfavorable_label=0,
-                                      df=pd.concat([X_train, y_train], axis=1),
-                                      label_names=['KTAS'], protected_attribute_names=[privileged_attr])
+def check_gender_fairness(model):
+    df = pd.read_csv("data/ktas.csv", encoding='ISO-8859-1', delimiter=';')
 
-    dataset_test = BinaryLabelDataset(favorable_label=1, unfavorable_label=0,
-                                      df=pd.concat([X_test, y_test], axis=1),
-                                      label_names=['KTAS'], protected_attribute_names=[privileged_attr])
+    df['KTAS duration_min'] = df['KTAS duration_min'].str.replace(',', '.').astype(float)
+    df['Length of stay_min'] = df['Length of stay_min'].astype(float)
 
-    # Train fair model
-    model = PrejudiceRemover(sensitive_attr=privileged_attr, eta=1.0)
-    model.fit(dataset_orig)
-    predictions = model.predict(dataset_test)
+    df['Sex'] = df['Sex'].map({1: 'Female', 2: 'Male'})
+    df['Injury'] = df['Injury'].map({1: 0, 2: 1})
+    df['Pain'] = df['Pain'].map({0: 0, 1: 1})
+    df['Mental'] = df['Mental'].map({1: 'Alert', 2: 'Verbal', 3: 'Pain', 4: 'Unresponsive'})
 
-    return predictions
+    df = df.dropna()
+    df['target'] = df['KTAS_expert'].apply(lambda x: 0 if x >= 4 else 1)
+
+    df_encoded = pd.get_dummies(df.drop(columns=['KTAS_expert']))
+    cols = joblib.load("model/feature_columns.pkl")
+    df_encoded = df_encoded.reindex(columns=cols, fill_value=0)
+
+    df['prediction'] = model.predict(df_encoded)
+    accuracy_by_gender = df.groupby('Sex').apply(lambda x: accuracy_score(x['target'], x['prediction'])).to_dict()
+
+    return {
+        "accuracy_by_gender": accuracy_by_gender,
+        "difference": abs(accuracy_by_gender['Male'] - accuracy_by_gender['Female'])
+    }
