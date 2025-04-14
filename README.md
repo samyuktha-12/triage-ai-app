@@ -29,9 +29,9 @@ Triage AI is an intelligent clinical decision support tool that uses machine lea
 
 - **Frontend**: Streamlit
 - **Backend**: Python (scikit-learn, SHAP)
-- **Explainability**: SHAP, IBM AIF360
-- **Model**: XGBoost / RandomForestClassifier (pretrained)
-- **Deployment**: Streamlit Cloud / Localhost
+- **Explainability**: SHAP
+- **Model**: RandomForestClassifier
+- **Deployment**: Streamlit Cloud
 
 ---
 
